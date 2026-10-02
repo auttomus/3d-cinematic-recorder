@@ -1,4 +1,4 @@
-# threejs-cinematic-recorder
+# 3d-cinematic-recorder
 
 Studio kamera sinematik berbasis browser untuk model GLB/Three.js apa pun.
 Susun node kamera di viewport 3D, atur kurva kecepatan Bezier per segmen,
