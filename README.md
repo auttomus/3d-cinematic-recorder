@@ -5,7 +5,7 @@ Susun node kamera di viewport 3D, atur kurva kecepatan Bezier per segmen,
 preview lewat lensa, lalu export video (WebCodecs MP4/WebM) atau rekam
 headless via Puppeteer + FFmpeg.
 
-Tanpa model pun langsung jalan: ada demo scene prosedural, tanpa file biner.
+<img width="1856" height="961" alt="Image" src="https://github.com/user-attachments/assets/c5b98cc6-15e6-4bd7-9ae8-d47f2821419d" />
 
 ## 1. Requirements
 
