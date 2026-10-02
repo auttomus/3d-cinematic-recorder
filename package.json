@@ -1,0 +1,15 @@
+{
+  "name": "threejs-cinematic-recorder",
+  "version": "0.1.0",
+  "description": "Browser-based cinematic camera studio for any Three.js/GLB model: node sequencer, Bezier speed curves, WebCodecs export, headless Puppeteer+FFmpeg recorder.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "serve": "node tools/serve.mjs --port 8085 --dir public",
+    "record": "node tools/record-headless.mjs --out ./cinematic-tour.mp4",
+    "record:720p": "node tools/record-headless.mjs examples/tracks/default.json --width 1280 --height 720 --fps 30 --out ./cinematic-tour-720p.mp4"
+  },
+  "dependencies": {
+    "puppeteer": "^25.9.0"
+  }
+}

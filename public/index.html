@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>3D Cinematic Director Studio - Node-Based Camera & Graph Sequencer</title>
+ <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%2306b6d4%22/></svg>">
+ <link rel="stylesheet" href="cinematic-studio.css">
+
+ <!-- Import Three.js via ES Modules -->
+ <script type="importmap">
+ {
+ "imports": {
+ "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+ "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+ }
+ }
+ </script>
+</head>
+<body>
+ <!-- Loading Overlay -->
+ <div id="loading-overlay">
+ <div class="spinner"></div>
+ <h3 id="loading-text" style="font-size: 16px; font-weight: 700;">Memuat Scene 3D & Model...</h3>
+ <p id="loading-progress" style="font-size: 13px; color: #94a3b8; margin-top: 6px;">0%</p>
+ </div>
+
+ <!-- 3D Canvas Container -->
+ <div id="canvas-container"></div>
+
+ <!-- Top Header Navigation Bar -->
+ <header id="top-bar" class="glass-panel">
+ <div class="brand-section">
+ <div class="brand-logo">CD</div>
+ <div>
+ <div class="brand-title">Cinematic Director</div>
+ <div class="brand-subtitle">Node & Graph Sequencer</div>
+ </div>
+ </div>
+
+ <div class="header-center">
+ <!-- Model Selector (Preserved as requested) -->
+ <div class="model-select-wrapper">
+ <label for="model-select" class="model-select-label">Model:</label>
+ <select id="model-select" class="custom-select">
+ <option value="" selected>Demo Scene (procedural, no download)</option>
+ <option value="custom">Load custom GLB file...</option>
+ 
+ </select>
+ <input type="file" id="custom-glb-input" accept=".glb,.gltf" style="display: none;">
+ </div>
+
+ <!-- Camera Mode Switcher -->
+ <div class="segmented-control">
+ <button id="btn-mode-orbit" class="seg-btn active" title="Kamera Bebas untuk Menata Posisi Node">
+ Director Orbit
+ </button>
+ <button id="btn-mode-fps" class="seg-btn" title="Terbang Bebas: WASD (Maju/Mundur/Samping), E / Spasi (Naik), Q / Shift (Turun), Mouse (Arah Pandang)">
+ Free Fly (FPS)
+ </button>
+ <button id="btn-mode-lens" class="seg-btn" title="Lihat Langsung dari Lensa Sinematik">
+ Lens View
+ </button>
+ </div>
+ </div>
+
+ <!-- Header Actions (Helpers, Presets, Export/Import, Toggle Panels) -->
+ <div class="header-actions">
+ <button id="btn-toggle-panels" class="icon-btn" title="Sembunyikan/Tampilkan Panel Studio (Shortcut: H)">
+ UI Panels
+ </button>
+ <button id="btn-toggle-grid" class="icon-btn" title="Toggle Grid Dasar">
+ Grid
+ </button>
+ <button id="btn-toggle-helpers" class="icon-btn" title="Tampilkan/Sembunyikan Visual 3D Node & Jalur">
+ 3D Nodes
+ </button>
+ <button id="btn-presets" class="icon-btn" title="Pilih Template Jalur Sinematik">
+ Presets
+ </button>
+ <button id="btn-export-json" class="icon-btn" title="Simpan Konfigurasi Jalur ke File JSON">
+ Export JSON
+ </button>
+ <button id="btn-import-json" class="icon-btn" title="Buka Konfigurasi Jalur dari File JSON">
+ Import
+ </button>
+ <input type="file" id="json-file-input" accept=".json" style="display: none;">
+ </div>
+ </header>
+
+ <!-- Left Panel: Node & Sequence Manager -->
+ <aside id="left-panel" class="glass-panel">
+ <div class="panel-header">
+ <div class="panel-title">
+ <span>Camera Nodes</span>
+ <span id="nodes-count-badge" class="panel-badge">4 Nodes</span>
+ </div>
+ <button id="btn-reset-track" class="mini-btn" title="Kembalikan ke Lintasan Default">Reset</button>
+ </div>
+
+ <button id="btn-add-node" class="btn-add-node">
+ Add Node From Current View
+ </button>
+
+ <!-- Scrollable list of node cards -->
+ <div id="nodes-list" class="nodes-scroll-list"></div>
+ </aside>
+
+ <!-- Right Panel: Inspector & Curve Graph Editor -->
+ <aside id="right-panel" class="glass-panel">
+ <!-- Tab Navigation -->
+ <div class="tabs-nav">
+ <button id="tab-btn-transform" class="tab-btn active">Transform</button>
+ <button id="tab-btn-curve" class="tab-btn">Curve</button>
+ <button id="tab-btn-environment" class="tab-btn">Environment</button>
+ <button id="tab-btn-shaders" class="tab-btn">Shaders</button>
+ <button id="tab-btn-export" class="tab-btn">Render</button>
+ </div>
+
+ <!-- Tab 1: Transform & Coordinates -->
+ <div id="tab-content-transform" class="tab-content active">
+ <div class="form-group">
+ <div class="form-label">
+ <span>Camera Position [X, Y, Z]</span>
+ <button id="btn-sync-cam-pos" class="mini-btn" title="Ambil koordinat kamera aktif">Ambil View</button>
+ </div>
+ <div class="form-row-3">
+ <div class="coord-input-wrap"><span class="coord-label">X</span><input id="input-pos-x" type="number" step="1" class="coord-input"></div>
+ <div class="coord-input-wrap"><span class="coord-label">Y</span><input id="input-pos-y" type="number" step="1" class="coord-input"></div>
+ <div class="coord-input-wrap"><span class="coord-label">Z</span><input id="input-pos-z" type="number" step="1" class="coord-input"></div>
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Focus Target (LookAt) [X, Y, Z]</span>
+ <button id="btn-sync-target-view" class="mini-btn" title="Ambil arah hadap pandangan kamera aktif">Ambil View</button>
+ </div>
+ <div class="form-row-3">
+ <div class="coord-input-wrap"><span class="coord-label">X</span><input id="input-target-x" type="number" step="1" class="coord-input"></div>
+ <div class="coord-input-wrap"><span class="coord-label">Y</span><input id="input-target-y" type="number" step="1" class="coord-input"></div>
+ <div class="coord-input-wrap"><span class="coord-label">Z</span><input id="input-target-z" type="number" step="1" class="coord-input"></div>
+ </div>
+ <div style="display: flex; gap: 6px; margin-top: 6px;">
+ <button id="btn-target-forward" class="mini-btn" style="flex: 1; justify-content: center;" title="Otomatis hadap ke depan searah jalur lintasan (Drone POV)">Face Path Forward</button>
+ <button id="btn-target-center" class="mini-btn" style="flex: 1; justify-content: center;" title="Hadapkan target ke tengah scene (0, 15, 0)">Face Center</button>
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Field of View (FOV)</span>
+ <span id="label-fov-val" class="range-val">50°</span>
+ </div>
+ <div class="range-wrap">
+ <input id="slider-fov" type="range" min="20" max="90" step="1" value="50">
+ </div>
+ </div>
+
+ <div style="display: flex; gap: 6px; margin-top: 6px;">
+ <button id="btn-snap-view" class="icon-btn" style="flex: 1; justify-content: center;">
+ Jump To This Angle
+ </button>
+ <button id="btn-update-view" class="icon-btn primary" style="flex: 1; justify-content: center;">
+ Save View To Node
+ </button>
+ </div>
+
+ <div style="font-size: 11px; color: #64748b; line-height: 1.4; margin-top: 8px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
+ <em>Tips:</em> Klik node di viewport 3D atau geser 3D Transform Gizmo panah untuk mengubah posisi kamera langsung di layar.
+ </div>
+ </div>
+
+ <!-- Tab 2: Graph / Bezier Curve & Speed Editor -->
+ <div id="tab-content-curve" class="tab-content">
+ <div class="form-group">
+ <div class="form-label">
+ <span>Selected Segment Duration:</span>
+ <div style="display: flex; align-items: center; gap: 4px;">
+ <input id="input-duration-num" type="number" step="0.1" min="0.2" max="120" value="4.5" class="coord-input" style="width: 60px; text-align: center; font-weight: 700; color: #38bdf8; padding: 2px 4px;">
+ <span style="font-size: 11px; color: var(--text-secondary);">dtk</span>
+ </div>
+ </div>
+ <div class="range-wrap">
+ <input id="slider-duration" type="range" min="0.2" max="30.0" step="0.1" value="4.5">
+ </div>
+ 
+ <!-- Micro Steppers -->
+ <div style="display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap;">
+ <button class="mini-btn btn-dur-step" data-step="-1.0" title="Kurangi 1 detik">-1s</button>
+ <button class="mini-btn btn-dur-step" data-step="-0.5" title="Kurangi 0.5 detik">-0.5s</button>
+ <button class="mini-btn btn-dur-step" data-step="-0.1" title="Kurangi 0.1 detik">-0.1s</button>
+ <button class="mini-btn btn-dur-step" data-step="+0.1" title="Tambah 0.1 detik">+0.1s</button>
+ <button class="mini-btn btn-dur-step" data-step="+0.5" title="Tambah 0.5 detik">+0.5s</button>
+ <button class="mini-btn btn-dur-step" data-step="+1.0" title="Tambah 1 detik">+1s</button>
+ </div>
+
+ <!-- Quick Preset Pills -->
+ <div style="display: flex; gap: 3px; margin-top: 4px; flex-wrap: wrap;">
+ <button class="preset-pill btn-dur-set" data-dur="1.5"> 1.5s</button>
+ <button class="preset-pill btn-dur-set" data-dur="3.0"> 3s</button>
+ <button class="preset-pill btn-dur-set" data-dur="4.5"> 4.5s</button>
+ <button class="preset-pill btn-dur-set" data-dur="6.0"> 6s</button>
+ <button class="preset-pill btn-dur-set" data-dur="8.0"> 8s</button>
+ <button class="preset-pill btn-dur-set" data-dur="12.0"> 12s</button>
+ </div>
+ </div>
+
+ <!-- Global Timeline Speed & Scale Tools -->
+ <div class="form-group" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); padding: 8px; border-radius: 6px; margin-bottom: 8px;">
+ <div class="form-label" style="font-size: 11px; font-weight: 700; color: #a5f3fc;">
+ <span> Skala Durasi Seluruh Lintasan:</span>
+ </div>
+ <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+ <button id="btn-scale-08" class="mini-btn" style="flex: 1; justify-content: center;" title="Percepat semua segmen (0.8x durasi)"> 0.8x (Cepat)</button>
+ <button id="btn-scale-12" class="mini-btn" style="flex: 1; justify-content: center;" title="Perlambat semua segmen (1.25x durasi)">1.25x (Slower)</button>
+ <button id="btn-scale-15" class="mini-btn" style="flex: 1; justify-content: center;" title="Perlambat semua segmen (1.5x durasi)">1.5x (Slowest)</button>
+ </div>
+ <div style="display: flex; gap: 6px; align-items: center;">
+ <input id="input-fit-total-sec" type="number" step="0.5" min="1" max="300" placeholder="Target Total (detik)" class="coord-input" style="flex: 1; text-align: center;">
+ <button id="btn-fit-total" class="mini-btn primary" style="white-space: nowrap;" title="Skala proporsional seluruh segmen ke total durasi ini"> Pas Total</button>
+ </div>
+ <button id="btn-auto-dur-dist" class="mini-btn" style="width: 100%; justify-content: center; margin-top: 6px; color: #86efac; border-color: rgba(16,185,129,0.3);" title="Otomatis hitung durasi berdasarkan jarak antar-node agar kecepatan kamera konsisten">
+ Auto Durasi Berdasarkan Jarak (Speed Drone)
+ </button>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Segment Easing Curve (Bezier Editor)</span>
+ <span id="label-curve-type" style="color: var(--accent-cyan); font-size: 11px; font-weight: 700;">Ease In-Out</span>
+ </div>
+ <div class="curve-canvas-wrapper">
+ <canvas id="curve-canvas"></canvas>
+ </div>
+ </div>
+
+ <!-- Easing Presets Grid -->
+ <div class="form-group">
+ <div class="form-label">Presets Easing:</div>
+ <div class="preset-grid">
+ <button class="preset-pill" data-preset="linear"> Linear</button>
+ <button class="preset-pill active" data-preset="ease-in-out"> Ease In-Out</button>
+ <button class="preset-pill" data-preset="ease-in"> Ease In</button>
+ <button class="preset-pill" data-preset="ease-out"> Ease Out</button>
+ <button class="preset-pill" data-preset="slow-mo">Slow-Mo Peak</button>
+ <button class="preset-pill" data-preset="snappy"> Snappy Fast</button>
+ <button class="preset-pill" data-preset="smooth-step"> Smooth Step</button>
+ <button class="preset-pill" data-preset="anticipate"> Punch</button>
+ </div>
+ </div>
+
+ <button id="btn-apply-all-curves" class="mini-btn" style="padding: 6px 10px; text-align: center; justify-content: center; margin-top: 4px;">
+ Terapkan Kurva Ini ke Semua Node
+ </button>
+
+ <!-- Trajectory & Spline Physics Controls -->
+ <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin-top: 8px;">
+ <div class="form-label">
+ <span>Segment Path Model:</span>
+ </div>
+ <div style="display: flex; gap: 4px;">
+ <button id="btn-path-curve" class="preset-pill active" style="flex: 1; justify-content: center;">Centripetal Curve</button>
+ <button id="btn-path-linear" class="preset-pill" style="flex: 1; justify-content: center;">Direct Line (Straight)</button>
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Path Tension:</span>
+ <span id="label-tension-val" class="range-val">0.0 (Halus)</span>
+ </div>
+ <div class="range-wrap">
+ <input id="slider-tension" type="range" min="0.0" max="1.0" step="0.05" value="0.0">
+ </div>
+ </div>
+
+ <div class="form-group">
+ <label style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #86efac; cursor: pointer;">
+ <input type="checkbox" id="check-clamp-ground" checked style="accent-color: #10b981; cursor: pointer;">
+ Cegah Kamera Tembus Tanah (Y ≥ 0.5)
+ </label>
+ </div>
+ </div>
+
+ <!-- Tab 3: Environment & Backdrop -->
+ <div id="tab-content-environment" class="tab-content">
+ <div class="form-group">
+ <div class="form-label"><span>Background (Sky Presets)</span></div>
+ <div class="preset-grid">
+ <button class="preset-pill btn-env-sky" data-bg="sky-noon">Noon</button>
+ <button class="preset-pill btn-env-sky" data-bg="sky-golden">Golden Hour</button>
+ <button class="preset-pill btn-env-sky" data-bg="sky-sunset">Sunset</button>
+ <button class="preset-pill btn-env-sky" data-bg="sky-blue">Clear Blue</button>
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label"><span>Studio Backdrop Color:</span></div>
+ <div class="color-swatch-grid">
+ <div class="color-swatch active btn-env-color" data-bg="color-slate" style="background: #0e1726;" title="Dark Slate">Slate</div>
+ <div class="color-swatch btn-env-color" data-bg="color-dark" style="background: #000000;" title="Pure Black">Black</div>
+ <div class="color-swatch btn-env-color" data-bg="color-white" style="background: #f1f5f9; color: #0f172a;" title="Studio Clay Light">Clay</div>
+ <div class="color-swatch btn-env-color" data-bg="color-warm" style="background: #e2e8f0; color: #0f172a;" title="Warm Gray">Warm</div>
+ </div>
+ </div>
+
+ <div class="form-group" style="display: flex; gap: 8px; align-items: center;">
+ <label class="form-label" style="margin: 0; font-size: 11px;">Kustom:</label>
+ <input type="color" id="picker-custom-bg" value="#0e1726" style="background: transparent; border: 1px solid var(--input-border); border-radius: 4px; height: 26px; width: 45px; cursor: pointer;">
+ <button id="btn-bg-transparent" class="mini-btn" style="flex: 1; justify-content: center;">Transparan</button>
+ </div>
+
+ <div class="form-group" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin-top: 8px;">
+ <div class="form-label"><span>Floor Mode:</span></div>
+ <div style="display: flex; gap: 4px;">
+ <button id="btn-floor-grid" class="preset-pill active" style="flex: 1; justify-content: center;">Grid Lines</button>
+ <button id="btn-floor-solid" class="preset-pill" style="flex: 1; justify-content: center;">Solid Matte</button>
+ <button id="btn-floor-none" class="preset-pill" style="flex: 1; justify-content: center;">No Floor</button>
+ </div>
+ </div>
+
+ <!-- Floor Color Section -->
+ <div id="floor-color-section" class="form-group" style="margin-top: 6px;">
+ <div class="form-label"><span>Floor Color:</span></div>
+ <div class="color-swatch-grid">
+ <div class="color-swatch active btn-floor-color" data-color="#1e293b" style="background: #1e293b;" title="Dark Slate">Slate</div>
+ <div class="color-swatch btn-floor-color" data-color="#0a0a0a" style="background: #0a0a0a;" title="Pure Black">Black</div>
+ <div class="color-swatch btn-floor-color" data-color="#cbd5e1" style="background: #cbd5e1; color: #0f172a;" title="Studio Light Clay">Clay</div>
+ <div class="color-swatch btn-floor-color" data-color="#166534" style="background: #166534;" title="Grass Green">Green</div>
+ </div>
+ <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+ <label class="form-label" style="margin: 0; font-size: 11px;">Kustom:</label>
+ <input type="color" id="picker-custom-floor" value="#1e293b" style="background: transparent; border: 1px solid var(--input-border); border-radius: 4px; height: 26px; width: 45px; cursor: pointer;">
+ <span style="font-size: 11px; color: var(--text-secondary);">Pilih warna lantai kustom</span>
+ </div>
+ </div>
+ </div>
+
+ <!-- Tab 4: Shaders & Post-Processing -->
+ <div id="tab-content-shaders" class="tab-content">
+ <div class="form-group">
+ <div class="switch-toggle-wrap">
+ <span style="font-size: 11px; font-weight: 700; color: var(--accent-cyan);">Enable Cinematic Shaders</span>
+ <label class="switch">
+ <input type="checkbox" id="check-shaders-master">
+ <span class="slider-switch"></span>
+ </label>
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Unreal Bloom (Glow)</span>
+ <span id="label-bloom-val" class="range-val">0.35</span>
+ </div>
+ <div class="range-wrap">
+ <input id="slider-bloom-strength" type="range" min="0.0" max="1.5" step="0.05" value="0.35">
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Bloom Radius</span>
+ <span id="label-bloom-rad-val" class="range-val">0.40</span>
+ </div>
+ <div class="range-wrap">
+ <input id="slider-bloom-radius" type="range" min="0.0" max="1.0" step="0.05" value="0.40">
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label">
+ <span>Exposure</span>
+ <span id="label-exposure-val" class="range-val">1.10</span>
+ </div>
+ <div class="range-wrap">
+ <input id="slider-exposure" type="range" min="0.4" max="2.5" step="0.05" value="1.10">
+ </div>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label"><span>Tone Mapping Curve:</span></div>
+ <select id="select-tone-mapping" class="custom-select">
+ <option value="aces" selected>ACES Filmic</option>
+ <option value="reinhard">Reinhard</option>
+ <option value="cineon">Cineon Film</option>
+ <option value="linear">Linear Standard</option>
+ </select>
+ </div>
+
+ <div style="font-size: 11px; color: #64748b; line-height: 1.4; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
+ <em>Tips:</em> Matikan shader (OFF) saat Anda ingin mengedit track dengan performa paling enteng & FPS tertinggi.
+ </div>
+ </div>
+
+ <!-- Tab 5: Render & Video Export -->
+ <div id="tab-content-export" class="tab-content">
+ <div class="form-group">
+ <div class="form-label"><span>Video Format:</span></div>
+ <select id="select-render-format" class="custom-select">
+ <option value="mp4" selected>MP4 / H.264 (universal, recommended)</option>
+ <option value="webm">WebM / VP9 (open web format)</option>
+ </select>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label"><span>Video Resolution:</span></div>
+ <select id="select-render-resolution" class="custom-select">
+ <option value="4k">4K Ultra HD (3840 x 2160)</option>
+ <option value="2k" selected>2K Quad HD (2560 x 1440)</option>
+ <option value="1080p">1080p Full HD (1920 x 1080)</option>
+ <option value="720p">720p HD (1280 x 720)</option>
+ </select>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label"><span>Framerate:</span></div>
+ <select id="select-render-fps" class="custom-select">
+ <option value="60" selected>60 FPS (ultra smooth)</option>
+ <option value="30">30 FPS (standard film)</option>
+ </select>
+ </div>
+
+ <div class="form-group">
+ <div class="form-label"><span>Video Bitrate:</span></div>
+ <select id="select-render-bitrate" class="custom-select">
+ <option value="80000000" selected>80 Mbps (master)</option>
+ <option value="50000000">50 Mbps (ultra)</option>
+ <option value="25000000">25 Mbps (high)</option>
+ <option value="12000000">12 Mbps (standard)</option>
+ </select>
+ </div>
+
+ <div class="form-group">
+ <div style="font-size: 11px; color: #86efac; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
+ <span></span>
+ <span><strong>Hardware Frame-Accurate Engine:</strong> WebCodecs H.264/VP9 + 8x MSAA + FXAA</span>
+ </div>
+ </div>
+
+ <!-- Primary Zero-Drop Button -->
+ <button id="btn-render-offline-60fps" class="btn-add-node" style="background: linear-gradient(135deg, #0284c7, #06b6d4, #10b981); margin-bottom: 8px; padding: 12px 10px; font-weight: 700; box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);">
+ Render Cinematic Video (frame-accurate)
+ </button>
+
+ <div style="font-size: 11px; color: #94a3b8; line-height: 1.5; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-top: 10px;">
+ <strong>Why is the render smooth?</strong><br>
+ Rendering dieksekusi secara <strong>Frame-Accurate WebCodecs</strong> (timestamp mikrodetik eksak per frame diskrit). Each frame is rendered with an exact timestamp, so video duration stays precise and camera motion stays smooth even on heavy scenes.
+ </div>
+ </div>
+ </aside>
+
+ <!-- Bottom Dock: Timeline Sequencer -->
+ <footer id="timeline-dock" class="glass-panel">
+ <div class="timeline-controls-row">
+ <!-- Transport Buttons -->
+ <div class="transport-group">
+ <button id="t-btn-start" class="t-btn" title="Jump to start">|&#9664;</button>
+ <button id="t-btn-step-back" class="t-btn" title="Back 1 second">&#9664;&#9664;</button>
+ <button id="t-btn-play" class="t-btn play-btn" title="Play / pause (Space)">Play</button>
+ <button id="t-btn-step-fwd" class="t-btn" title="Forward 1 second">&#9654;&#9654;</button>
+ <button id="t-btn-stop" class="t-btn" title="Stop">Stop</button>
+ <button id="t-btn-loop" class="t-btn" title="Looping Putaran Terus Menerus" style="color: var(--accent-emerald);">Loop</button>
+ 
+ <select id="select-playback-speed" class="custom-select" style="padding: 4px 6px; font-size: 11px; margin-left: 6px;">
+ <option value="0.5">0.5x</option>
+ <option value="1.0" selected>1.0x</option>
+ <option value="1.5">1.5x</option>
+ <option value="2.0">2.0x</option>
+ </select>
+ </div>
+
+ <!-- Timecode & Spot Indicator -->
+ <div style="display: flex; align-items: center; gap: 10px;">
+ <div id="active-spot-badge" style="font-size: 11px; font-weight: 600; color: #6ee7b7; background: rgba(5, 150, 105, 0.2); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.3);">
+ Spot: 1. Entrance Overview
+ </div>
+ <div id="timecode-box" class="timecode-display">
+ <span id="tc-current">00:00.0</span> / <span id="tc-total">00:19.0</span>
+ </div>
+ <button id="t-btn-record-tour" class="t-btn record-tour-btn" title="Rekam 1 Putaran Tur Penuh Otomatis">
+ Record Tour
+ </button>
+ </div>
+ </div>
+
+ <!-- Timeline Scrubber & Keyframe Track -->
+ <div id="timeline-track-wrap" class="timeline-track-wrapper">
+ <div id="timeline-segments-layer" class="timeline-segments-layer"></div>
+ <div id="timeline-markers-layer" style="position: absolute; inset: 0; pointer-events: none;"></div>
+ <div id="playhead-needle" style="left: 0%;">
+ <div id="playhead-handle"></div>
+ </div>
+ </div>
+ </footer>
+
+ <!-- Floating Stats Box -->
+ <div id="stats-box">FPS: -- | Tris: -- | Calls: --</div>
+
+ <!-- Render Progress Modal -->
+ <div id="render-modal-overlay">
+ <div class="render-modal-card">
+ <div style="font-size: 32px;"></div>
+ <div style="font-weight: 700; font-size: 16px; color: #fff;">Rendering Video (frame-accurate)</div>
+ <div id="render-modal-status" style="font-size: 12px; color: #94a3b8;">Mempersiapkan frame 3D...</div>
+ 
+ <div class="render-progress-bar-wrap">
+ <div id="render-modal-progress-bar" class="render-progress-bar-fill"></div>
+ </div>
+ 
+ <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary);">
+ <span id="render-modal-frame-counter">Frame 0 / 0</span>
+ <span id="render-modal-percent-counter" style="color: var(--accent-cyan); font-weight: 700;">0%</span>
+ </div>
+
+ <button id="btn-render-modal-cancel" class="mini-btn danger" style="justify-content: center; padding: 8px; margin-top: 6px;">
+ Cancel Render
+ </button>
+ </div>
+ </div>
+
+ <!-- Main Application Scripts -->
+ <script type="module" src="./js/app.js"></script>
+</body>
+</html>

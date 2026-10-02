@@ -1,0 +1,38 @@
+[
+  {
+    "id": "node_1",
+    "name": "1. Entrance Overview",
+    "pos": [120, 25, 200],
+    "target": [0, 15, 0],
+    "fov": 50,
+    "durationSec": 4.5,
+    "curve": { "preset": "ease-in-out", "p1": [0.42, 0.0], "p2": [0.58, 1.0] }
+  },
+  {
+    "id": "node_2",
+    "name": "2. Main Hall & Center",
+    "pos": [30, 35, 80],
+    "target": [-40, 10, -40],
+    "fov": 50,
+    "durationSec": 5.0,
+    "curve": { "preset": "ease-in-out", "p1": [0.42, 0.0], "p2": [0.58, 1.0] }
+  },
+  {
+    "id": "node_3",
+    "name": "3. Side Wing",
+    "pos": [-130, 30, 10],
+    "target": [0, 20, 0],
+    "fov": 50,
+    "durationSec": 4.5,
+    "curve": { "preset": "ease-in-out", "p1": [0.42, 0.0], "p2": [0.58, 1.0] }
+  },
+  {
+    "id": "node_4",
+    "name": "4. Aerial Drone Panorama",
+    "pos": [150, 160, 150],
+    "target": [0, 0, 0],
+    "fov": 55,
+    "durationSec": 5.0,
+    "curve": { "preset": "slow-mo", "p1": [0.8, 0.05], "p2": [0.2, 0.95] }
+  }
+]

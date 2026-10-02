@@ -1,0 +1,10 @@
+node_modules/
+*.log
+chrome/
+*.mp4
+*.webm
+# No binary models in git — use public/models/ locally (see its README).
+*.glb
+*.gltf
+!.gitkeep
+.DS_Store
